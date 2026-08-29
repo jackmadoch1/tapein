@@ -100,7 +100,7 @@ export function CheckInForm() {
       <Textarea
         value={note}
         maxLength={280}
-        placeholder="Add a comment"
+        placeholder="Add a message"
         onChange={(e) => setNote(e.target.value)}
       />
 

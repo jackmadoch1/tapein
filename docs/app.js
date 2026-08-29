@@ -65,6 +65,8 @@
       let tab = "confirm";
       let toastMsg = "";
       let toastTimer = 0;
+      let checkOpen = false;
+      let checkPhoto = null;
 
       function toast(msg) {
         toastMsg = msg;
@@ -122,18 +124,48 @@
       function checkIn() {
         const me = currentUser();
         if (!me) return;
+        const note = (document.getElementById("check-note") || {}).value || "";
         state.visits.unshift({
           id: uid(),
           userId: me.id,
           name: me.name,
+          note: String(note).trim(),
+          photo: checkPhoto,
           createdAt: new Date().toISOString(),
           weekStart: weekStartMonday(),
           yes: [],
           no: [],
           status: "pending",
         });
+        checkOpen = false;
+        checkPhoto = null;
         persist();
         toast("Checked in. Needs 2 yeses.");
+      }
+
+      function readPhoto(file, cb) {
+        if (!file || !file.type.startsWith("image/")) {
+          toast("Choose a photo.");
+          return;
+        }
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = function () {
+          const max = 720;
+          const scale = Math.min(1, max / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          checkPhoto = canvas.toDataURL("image/jpeg", 0.72);
+          render();
+        };
+        img.onerror = function () {
+          URL.revokeObjectURL(url);
+          toast("Could not read that photo.");
+        };
+        img.src = url;
       }
       function vote(visitId, choice) {
         const me = currentUser();
@@ -229,10 +261,13 @@
                        <button class="btn btn-outline btn-sm" data-vote="${v.id}" data-choice="no">No</button>
                      </div>`;
                 const extra = v.yes.length ? ` · ${v.yes.length}/2` : "";
+                const proof = (v.note ? `<p class="note">${escapeHtml(v.note)}</p>` : "") +
+                  (v.photo ? `<img class="shot" alt="" src="${v.photo}">` : "");
                 return `<li class="item">
                   <div class="grow">
                     <p class="name">${escapeHtml(v.name)}</p>
                     <p class="meta">${formatClock(v.createdAt)}${extra}</p>
+                    ${proof}
                   </div>
                   ${actions}
                 </li>`;
@@ -253,10 +288,25 @@
               .join("")
           : `<p class="empty">No one on the board yet.</p>`;
 
+        const checkForm = checkOpen
+          ? `<form id="check-form" class="check-form">
+                <input id="check-photo" type="file" accept="image/*" capture="environment" style="display:none" />
+                ${checkPhoto
+                  ? `<img class="shot" alt="Check-in photo" src="${checkPhoto}">
+                     <button type="button" class="btn btn-outline" data-clear-photo>Remove photo</button>`
+                  : `<button type="button" class="btn btn-outline" data-add-photo>Add a photo</button>`}
+                <textarea id="check-note" maxlength="280" placeholder="Add a message"></textarea>
+                <div class="row-btns">
+                  <button type="button" class="btn btn-outline" style="flex:1" data-cancel-check>Cancel</button>
+                  <button type="submit" class="btn btn-primary" style="flex:1">Check in</button>
+                </div>
+              </form>`
+          : `<button class="btn btn-primary" style="width:100%" data-open-check>I went in</button>`;
+
         const body =
           tab === "confirm"
             ? `<div style="padding-top:1.25rem">
-                <button class="btn btn-primary" style="width:100%" data-checkin>I went in</button>
+                ${checkForm}
                 ${myPending ? `<p class="hint">${myPending} of yours waiting on 2 confirms</p>` : ""}
                 <h2 class="section-title">Did you see them?</h2>
                 <ul class="list">${confirmList}</ul>
@@ -332,7 +382,31 @@
           if (err) toast(err);
         });
         root.querySelector("[data-out]")?.addEventListener("click", signOut);
-        root.querySelector("[data-checkin]")?.addEventListener("click", checkIn);
+        root.querySelector("[data-open-check]")?.addEventListener("click", () => {
+          checkOpen = true;
+          render();
+        });
+        root.querySelector("[data-cancel-check]")?.addEventListener("click", () => {
+          checkOpen = false;
+          checkPhoto = null;
+          render();
+        });
+        root.querySelector("[data-add-photo]")?.addEventListener("click", () => {
+          document.getElementById("check-photo")?.click();
+        });
+        root.querySelector("[data-clear-photo]")?.addEventListener("click", () => {
+          checkPhoto = null;
+          render();
+        });
+        root.querySelector("#check-photo")?.addEventListener("change", (e) => {
+          const file = e.target.files && e.target.files[0];
+          e.target.value = "";
+          if (file) readPhoto(file);
+        });
+        root.querySelector("#check-form")?.addEventListener("submit", (e) => {
+          e.preventDefault();
+          checkIn();
+        });
         root.querySelectorAll("[data-tab]").forEach((n) =>
           n.addEventListener("click", () => {
             tab = n.getAttribute("data-tab");
