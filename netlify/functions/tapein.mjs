@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { getStore } from "@netlify/blobs";
+import { connectLambda, getStore } from "@netlify/blobs";
 
 const TZ = "America/Chicago";
 const MAX_VISITS = 400;
@@ -126,12 +126,19 @@ export async function handler(event) {
 
   let store;
   try {
-    store = getStore("atr-tracker");
-  } catch {
+    try {
+      connectLambda(event);
+    } catch {
+      // already configured (non-Lambda runtime)
+    }
+    store = getStore({ name: "atr-tracker", consistency: "strong" });
+  } catch (err) {
     return {
       statusCode: 500,
       headers: cors,
-      body: JSON.stringify({ error: "Shared board is not available yet. Redeploy the site on Netlify." }),
+      body: JSON.stringify({
+        error: "Shared board is starting up. Wait a minute, refresh, then try again.",
+      }),
     };
   }
 

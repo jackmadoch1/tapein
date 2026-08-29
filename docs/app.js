@@ -59,6 +59,8 @@
       let pollTimer = 0;
       let lastJson = "";
 
+      let boardError = "";
+
       function toast(msg) {
         toastMsg = msg;
         clearTimeout(toastTimer);
@@ -103,17 +105,20 @@
           const next = JSON.stringify({ users: data.users || [], visits: data.visits || [] });
           const changed = next !== lastJson;
           applyServer(data);
+          boardError = "";
           if (state.sessionId && !currentUser()) {
             state.sessionId = null;
             localStorage.removeItem(SESSION_KEY);
-            screen = "auth";
+            if (screen === "app") screen = "auth";
           }
+          const wasReady = ready;
           ready = true;
-          if (forceRender || changed) render();
+          if (forceRender || changed || !wasReady) render();
         } catch (err) {
+          const wasReady = ready;
           ready = true;
-          if (forceRender) toast(err.message || "Could not load the board.");
-          else render();
+          boardError = err.message || "Could not load the board.";
+          if (!wasReady) render();
         }
       }
 
@@ -246,6 +251,7 @@
           <main>
             <h1 style="font-size:1.875rem;margin-top:1.25rem">${title}</h1>
             <p class="lede">Two confirms and it counts this week.</p>
+            ${boardError ? `<p class="lede" style="color:var(--maroon)">${escapeHtml(boardError)}</p>` : ""}
             <form id="auth-form" class="stack" style="margin-top:2rem">
               <div>
                 <label for="name">Name</label>
@@ -464,5 +470,5 @@
       refresh(true);
       clearInterval(pollTimer);
       pollTimer = setInterval(() => {
-        if (document.visibilityState === "visible") refresh(false);
+        if (document.visibilityState === "visible" && screen === "app") refresh(false);
       }, 4000);
