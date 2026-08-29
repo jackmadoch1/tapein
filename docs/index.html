@@ -3,11 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TapeIn</title>
-    <meta
-      name="description"
-      content="Check in to the athletic training room. Two confirms and it counts on the weekly board."
-    />
+    <title>ATR Tracker</title>
+    <meta name="description" content="Athletic training room check-in. Two confirms and it counts." />
     <meta name="theme-color" content="#500000" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -40,7 +37,7 @@
       .hero h1 { font-size: 3rem; }
       .lede { margin: 0.75rem 0 0; color: var(--muted); line-height: 1.55; }
       .stack { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 2rem; }
-      .btn { display: inline-flex; align-items: center; justify-content: center; height: 2.75rem; padding: 0 1rem; border-radius: 8px; font: 500 0.875rem/1 var(--sans); border: 1px solid transparent; }
+      .btn { display: inline-flex; align-items: center; justify-content: center; height: 2.75rem; padding: 0 1rem; border-radius: 8px; font: 500 0.875rem/1 var(--sans); border: 1px solid transparent; text-decoration: none; }
       .btn-primary { background: var(--maroon); color: var(--white); }
       .btn-outline { background: var(--white); color: var(--maroon); border-color: var(--border); }
       .btn-sm { height: 2.5rem; padding: 0 0.75rem; }
@@ -70,9 +67,26 @@
     </style>
   </head>
   <body>
-    <div id="app"></div>
-    <script src="app.js"></script>
-    <noscript>Turn on JavaScript to use ATR Tracker.</noscript>
-
+    <div id="app">
+      <header class="header">
+        <div class="header-inner"><span class="brand">ATR TRACKER</span></div>
+      </header>
+      <main>
+        <h1 style="font-size:1.875rem;margin-top:1.25rem">Create account</h1>
+        <p class="lede">Two confirms and it counts this week.</p>
+        <form id="auth-form" class="stack" style="margin-top:2rem">
+          <div>
+            <label for="name">Name</label>
+            <input id="name" name="name" autocomplete="name" required minlength="2" />
+          </div>
+          <div>
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" required minlength="4" />
+          </div>
+          <button class="btn btn-primary" type="submit">Create account</button>
+        </form>
+      </main>
+    </div>
+    <script src="app.js?v=4"></script>
   </body>
 </html>

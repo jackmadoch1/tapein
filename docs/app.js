@@ -60,7 +60,7 @@
       }
 
       let state = load();
-      let screen = state.sessionId ? "app" : "landing";
+      let screen = state.sessionId ? "app" : "auth";
       let authMode = "signup";
       let tab = "confirm";
       let toastMsg = "";
@@ -158,10 +158,10 @@
       function renderLanding() {
         return `
           <header class="header">
-            <div class="header-inner"><a class="brand" href="#">TAPE IN</a></div>
+            <div class="header-inner"><a class="brand" href="#">ATR TRACKER</a></div>
           </header>
           <main class="hero">
-            <h1>AT Room</h1>
+            <h1>ATR Tracker</h1>
             <p class="lede">Check in when you go in. Two teammates confirm it. The board counts the week.</p>
             <div class="stack">
               <button class="btn btn-primary" data-go="signup">Create an account</button>
@@ -176,7 +176,7 @@
         const swap = authMode === "signup" ? "Already have an account? Sign in" : "Need an account? Create one";
         return `
           <header class="header">
-            <div class="header-inner"><a class="brand" href="#" data-home>TAPE IN</a></div>
+            <div class="header-inner"><a class="brand" href="#" data-home>ATR TRACKER</a></div>
           </header>
           <main>
             <h1 style="font-size:1.875rem;margin-top:1.25rem">${title}</h1>
@@ -270,7 +270,7 @@
         return `
           <header class="header">
             <div class="header-inner">
-              <a class="brand" href="#">TAPE IN</a>
+              <a class="brand" href="#">ATR TRACKER</a>
               <div class="header-actions">
                 <span class="user-chip">${escapeHtml(me.name)}</span>
                 <button class="ghost" data-out>Sign out</button>
