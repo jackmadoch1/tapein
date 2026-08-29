@@ -2,7 +2,7 @@
 
 Athletic training room check-in. Two teammates confirm it, then it counts on the weekly board.
 
-**Live site:** [jackmadoch1.github.io](https://jackmadoch1.github.io/)
+**Live site:** [jackmadoch2.github.io](https://jackmadoch2.github.io/)
 
 Texas A&M maroon and white. Two tabs:
 
