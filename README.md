@@ -1,8 +1,6 @@
-# TapeIn
+# TapeIn / ATR Tracker
 
 Athletic training room check-in. Two teammates confirm it, then it counts on the weekly board.
-
-**Live site:** [jackmadoch1.github.io/atr-tracker](https://jackmadoch1.github.io/atr-tracker/)
 
 Texas A&M maroon and white. Two tabs:
 
@@ -11,12 +9,20 @@ Texas A&M maroon and white. Two tabs:
 
 They need **2 yeses** for a visit to count.
 
-## Accounts
+## Deploy on Netlify (from this GitHub repo)
 
-Create an account with a name. Sign out and make another account in the same browser to confirm each other.
+1. Go to [app.netlify.com](https://app.netlify.com/) and sign in with **GitHub**.
+2. Click **Add new site → Import an existing project**.
+3. Choose **GitHub** and authorize Netlify if asked.
+4. Select the repo **tapein** (`jackmadoch1/tapein`).
+5. On the build settings screen:
+   - **Build command:** leave empty
+   - **Publish directory:** `docs`
+6. Click **Deploy site**.
+7. When the deploy is **Published**, click the site URL (it looks like `something.netlify.app`). That is the live app.
 
-The GitHub Pages site stores data in this browser (so a teammate on another phone will not see your check-ins). The source in this repo is the full multi-user app with real accounts.
+Create an account on that Netlify URL. Sign out and make a second account in the **same browser** to confirm visits.
 
-## Source app
+## Source
 
-React + TanStack Start, with sign-in and a weekly database. That version needs a host that can run a server (not GitHub Pages).
+This repo also has the full multi-user app (accounts + weekly database). Netlify is hosting the simple site in `docs/`.
