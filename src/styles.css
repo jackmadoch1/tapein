@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Oswald", "Arial Narrow", ui-sans-serif, sans-serif;
+
+  --color-background: #ffffff;
+  --color-foreground: #500000;
+  --color-card: #ffffff;
+  --color-card-foreground: #500000;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #500000;
+  --color-primary: #500000;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f4ecec;
+  --color-secondary-foreground: #500000;
+  --color-muted: #f4ecec;
+  --color-muted-foreground: #6b6b6b;
+  --color-accent: #500000;
+  --color-accent-foreground: #ffffff;
+  --color-border: rgb(80 0 0 / 0.18);
+  --color-input: rgb(80 0 0 / 0.22);
+  --color-ring: #500000;
+  --color-destructive: #500000;
+  --color-destructive-foreground: #ffffff;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius: 8px;
+
+  --shadow-border: 0 0 0 1px rgb(80 0 0 / 0.14);
+  --shadow-border-hover: 0 0 0 1px rgb(80 0 0 / 0.22);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    color-scheme: light;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .header-user,
+  .header-user span,
+  .header-user button {
+    color: var(--color-primary-foreground);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
