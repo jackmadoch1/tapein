@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
-import { connectLambda, getStore } from "@netlify/blobs";
 
 const TZ = "America/Chicago";
 const MAX_VISITS = 400;
 const MAX_PHOTO = 350_000;
+const STORE = "site:atr-tracker";
+const KEY = "state";
 
 function hashPassword(password) {
   return createHash("sha256").update(String(password)).digest("hex");
@@ -38,13 +39,47 @@ function publicState(state) {
   };
 }
 
-async function load(store) {
-  const data = await store.get("state", { type: "json" });
+function blobsContext(event) {
+  if (!event?.blobs) throw new Error("Missing blobs context");
+  const data = JSON.parse(Buffer.from(event.blobs, "base64").toString("utf8"));
+  const headers = event.headers || {};
+  const siteID = headers["x-nf-site-id"] || headers["X-Nf-Site-Id"];
+  const token = data.token;
+  const edgeURL = data.url;
+  if (!siteID || !token || !edgeURL) throw new Error("Incomplete blobs context");
+  return { siteID, token, edgeURL };
+}
+
+function blobUrl(ctx, key) {
+  const base = ctx.edgeURL.endsWith("/") ? ctx.edgeURL : `${ctx.edgeURL}/`;
+  return new URL(`${ctx.siteID}/${STORE}/${key}`, base).toString();
+}
+
+async function load(ctx) {
+  const res = await fetch(blobUrl(ctx, KEY), {
+    headers: { authorization: `Bearer ${ctx.token}` },
+  });
+  if (res.status === 404) return { users: [], visits: [] };
+  if (!res.ok) throw new Error(`Could not read board (${res.status}).`);
+  const data = await res.json();
   if (!data || typeof data !== "object") return { users: [], visits: [] };
   return {
     users: Array.isArray(data.users) ? data.users : [],
     visits: Array.isArray(data.visits) ? data.visits : [],
   };
+}
+
+async function save(ctx, state) {
+  const res = await fetch(blobUrl(ctx, KEY), {
+    method: "PUT",
+    headers: {
+      authorization: `Bearer ${ctx.token}`,
+      "content-type": "application/json",
+      "cache-control": "max-age=0, stale-while-revalidate=60",
+    },
+    body: JSON.stringify(state),
+  });
+  if (!res.ok) throw new Error(`Could not save board (${res.status}).`);
 }
 
 function applyOp(state, body) {
@@ -119,60 +154,34 @@ const cors = {
   "access-control-allow-headers": "content-type",
 };
 
+function json(statusCode, body) {
+  return { statusCode, headers: cors, body: JSON.stringify(body) };
+}
+
 export async function handler(event) {
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 204, headers: cors };
-  }
-
-  let store;
+  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: cors };
   try {
-    try {
-      connectLambda(event);
-    } catch {
-      // already configured (non-Lambda runtime)
-    }
-    store = getStore({ name: "atr-tracker", consistency: "strong" });
-  } catch (err) {
-    return {
-      statusCode: 500,
-      headers: cors,
-      body: JSON.stringify({
-        error: "Shared board is starting up. Wait a minute, refresh, then try again.",
-      }),
-    };
-  }
-
-  try {
+    const ctx = blobsContext(event);
     if (event.httpMethod === "GET") {
-      const state = await load(store);
-      return { statusCode: 200, headers: cors, body: JSON.stringify(publicState(state)) };
+      const state = await load(ctx);
+      return json(200, publicState(state));
     }
-    if (event.httpMethod !== "POST") {
-      return { statusCode: 405, headers: cors, body: JSON.stringify({ error: "Method not allowed." }) };
-    }
+    if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed." });
     const body = JSON.parse(event.body || "{}");
-    const state = await load(store);
+    const state = await load(ctx);
     const result = applyOp(state, body);
-    if (result.error) {
-      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: result.error }) };
-    }
-    await store.setJSON("state", result.state);
-    return {
-      statusCode: 200,
-      headers: cors,
-      body: JSON.stringify({
-        ...publicState(result.state),
-        sessionId: result.sessionId || null,
-        approved: result.approved || false,
-        yesCount: result.yesCount || 0,
-        choice: result.choice || null,
-      }),
-    };
+    if (result.error) return json(400, { error: result.error });
+    await save(ctx, result.state);
+    return json(200, {
+      ...publicState(result.state),
+      sessionId: result.sessionId || null,
+      approved: result.approved || false,
+      yesCount: result.yesCount || 0,
+      choice: result.choice || null,
+    });
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: cors,
-      body: JSON.stringify({ error: err instanceof Error ? err.message : "Could not update the board." }),
-    };
+    return json(500, {
+      error: err instanceof Error ? err.message : "Could not update the board.",
+    });
   }
 }

@@ -1,6 +1,6 @@
       const SESSION_KEY = "atr-session";
       const TZ = "America/Chicago";
-      const API = "/api/tapein";
+      const API_PATHS = ["/api/tapein", "/.netlify/functions/tapein"];
 
       function chicagoDate(d = new Date()) {
         return new Intl.DateTimeFormat("en-CA", {
@@ -88,15 +88,30 @@
       }
 
       async function api(method, payload) {
-        const res = await fetch(API, {
-          method,
-          headers: method === "POST" ? { "content-type": "application/json" } : undefined,
-          body: method === "POST" ? JSON.stringify(payload) : undefined,
-          cache: "no-store",
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || "Could not reach the shared board.");
-        return data;
+        let lastErr = "Could not reach the shared board.";
+        for (const path of API_PATHS) {
+          try {
+            const res = await fetch(path, {
+              method,
+              headers: method === "POST" ? { "content-type": "application/json" } : undefined,
+              body: method === "POST" ? JSON.stringify(payload) : undefined,
+              cache: "no-store",
+            });
+            const text = await res.text();
+            let data = {};
+            try {
+              data = text ? JSON.parse(text) : {};
+            } catch {
+              lastErr = "The shared board is not live on this deploy yet. Trigger a new Netlify deploy from Deploys.";
+              continue;
+            }
+            if (!res.ok) throw new Error(data.error || lastErr);
+            return data;
+          } catch (err) {
+            lastErr = err.message || lastErr;
+          }
+        }
+        throw new Error(lastErr);
       }
 
       async function refresh(forceRender) {
