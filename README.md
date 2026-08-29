@@ -15,13 +15,13 @@ They need **2 yeses** for a visit to count.
 2. Click **Add new site → Import an existing project**.
 3. Choose **GitHub** and authorize Netlify if asked.
 4. Select the repo **tapein** (`jackmadoch1/tapein`).
-5. On the build settings screen:
-   - **Build command:** leave empty
+5. On build settings:
+   - **Build command:** `echo 'static docs + functions'` (already in `netlify.toml`)
    - **Publish directory:** `docs`
-6. Click **Deploy site**.
-7. When the deploy is **Published**, click the site URL (it looks like `something.netlify.app`). That is the live app.
+6. Click **Deploy site**. Wait until it says **Published**.
+7. Open the `*.netlify.app` URL. Create an account. Teammates use that same URL — they will see each other’s check-ins.
 
-Create an account on that Netlify URL. Sign out and make a second account in the **same browser** to confirm visits.
+Create an account on that Netlify URL. Everyone who opens the same Netlify site shares one board — check-ins, photos, messages, and the leaderboard.
 
 ## Source
 

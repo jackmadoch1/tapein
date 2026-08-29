@@ -1,2 +1,12 @@
 [build]
+  command = "echo 'static docs + functions'"
   publish = "docs"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/tapein"
+  to = "/.netlify/functions/tapein"
+  status = 200

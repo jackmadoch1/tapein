@@ -1,16 +1,6 @@
-      const KEY = "tapein-v1";
+      const SESSION_KEY = "atr-session";
       const TZ = "America/Chicago";
-
-      function load() {
-        try {
-          return JSON.parse(localStorage.getItem(KEY)) || { users: [], visits: [], sessionId: null };
-        } catch {
-          return { users: [], visits: [], sessionId: null };
-        }
-      }
-      function save(state) {
-        localStorage.setItem(KEY, JSON.stringify(state));
-      }
+      const API = "/api/tapein";
 
       function chicagoDate(d = new Date()) {
         return new Intl.DateTimeFormat("en-CA", {
@@ -55,11 +45,8 @@
           minute: "2-digit",
         });
       }
-      function uid() {
-        return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-      }
 
-      let state = load();
+      let state = { users: [], visits: [], sessionId: localStorage.getItem(SESSION_KEY) };
       let screen = state.sessionId ? "app" : "auth";
       let authMode = "signup";
       let tab = "confirm";
@@ -67,6 +54,10 @@
       let toastTimer = 0;
       let checkOpen = false;
       let checkPhoto = null;
+      let ready = false;
+      let busy = false;
+      let pollTimer = 0;
+      let lastJson = "";
 
       function toast(msg) {
         toastMsg = msg;
@@ -77,9 +68,6 @@
         }, 2200);
         render();
       }
-      function persist() {
-        save(state);
-      }
       function currentUser() {
         return state.users.find((u) => u.id === state.sessionId) || null;
       }
@@ -87,63 +75,111 @@
         const start = weekStartMonday();
         return state.visits.filter((v) => v.weekStart === start);
       }
-
-      function signUp(name, password) {
-        const n = name.trim();
-        if (n.length < 2) return "Enter your name.";
-        if (password.length < 4) return "Password must be at least 4 characters.";
-        if (state.users.some((u) => u.name.toLowerCase() === n.toLowerCase())) {
-          return "That name is already taken.";
+      function applyServer(data) {
+        state.users = data.users || [];
+        state.visits = data.visits || [];
+        if (data.sessionId) {
+          state.sessionId = data.sessionId;
+          localStorage.setItem(SESSION_KEY, data.sessionId);
         }
-        const user = { id: uid(), name: n, password };
-        state.users.push(user);
-        state.sessionId = user.id;
-        persist();
-        screen = "app";
-        tab = "confirm";
-        toast("Account created.");
-        return null;
+        lastJson = JSON.stringify({ users: state.users, visits: state.visits });
       }
-      function signIn(name, password) {
-        const n = name.trim();
-        const user = state.users.find((u) => u.name.toLowerCase() === n.toLowerCase());
-        if (!user || user.password !== password) return "Name or password is wrong.";
-        state.sessionId = user.id;
-        persist();
-        screen = "app";
-        tab = "confirm";
-        render();
-        return null;
+
+      async function api(method, payload) {
+        const res = await fetch(API, {
+          method,
+          headers: method === "POST" ? { "content-type": "application/json" } : undefined,
+          body: method === "POST" ? JSON.stringify(payload) : undefined,
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not reach the shared board.");
+        return data;
+      }
+
+      async function refresh(forceRender) {
+        try {
+          const data = await api("GET");
+          const next = JSON.stringify({ users: data.users || [], visits: data.visits || [] });
+          const changed = next !== lastJson;
+          applyServer(data);
+          if (state.sessionId && !currentUser()) {
+            state.sessionId = null;
+            localStorage.removeItem(SESSION_KEY);
+            screen = "auth";
+          }
+          ready = true;
+          if (forceRender || changed) render();
+        } catch (err) {
+          ready = true;
+          if (forceRender) toast(err.message || "Could not load the board.");
+          else render();
+        }
+      }
+
+      async function signUp(name, password) {
+        const n = String(name || "").trim();
+        if (n.length < 2) return toast("Enter your name.");
+        if (String(password || "").length < 4) return toast("Password must be at least 4 characters.");
+        if (busy) return;
+        busy = true;
+        try {
+          const data = await api("POST", { op: "signup", name: n, password });
+          applyServer(data);
+          screen = "app";
+          tab = "confirm";
+          toast("Account created.");
+        } catch (err) {
+          toast(err.message);
+        } finally {
+          busy = false;
+        }
+      }
+      async function signIn(name, password) {
+        if (busy) return;
+        busy = true;
+        try {
+          const data = await api("POST", { op: "signin", name, password });
+          applyServer(data);
+          screen = "app";
+          tab = "confirm";
+          render();
+        } catch (err) {
+          toast(err.message);
+        } finally {
+          busy = false;
+        }
       }
       function signOut() {
         state.sessionId = null;
-        persist();
-        screen = "landing";
+        localStorage.removeItem(SESSION_KEY);
+        screen = "auth";
+        authMode = "signin";
         render();
       }
-      function checkIn() {
+      async function checkIn() {
         const me = currentUser();
-        if (!me) return;
+        if (!me || busy) return;
         const note = (document.getElementById("check-note") || {}).value || "";
-        state.visits.unshift({
-          id: uid(),
-          userId: me.id,
-          name: me.name,
-          note: String(note).trim(),
-          photo: checkPhoto,
-          createdAt: new Date().toISOString(),
-          weekStart: weekStartMonday(),
-          yes: [],
-          no: [],
-          status: "pending",
-        });
-        checkOpen = false;
-        checkPhoto = null;
-        persist();
-        toast("Checked in. Needs 2 yeses.");
+        busy = true;
+        try {
+          const data = await api("POST", {
+            op: "checkin",
+            userId: me.id,
+            note: String(note).trim(),
+            photo: checkPhoto,
+          });
+          applyServer(data);
+          checkOpen = false;
+          checkPhoto = null;
+          toast("Checked in. Needs 2 yeses.");
+        } catch (err) {
+          toast(err.message);
+        } finally {
+          busy = false;
+        }
       }
-
-      function readPhoto(file, cb) {
+      function readPhoto(file) {
         if (!file || !file.type.startsWith("image/")) {
           toast("Choose a photo.");
           return;
@@ -167,24 +203,21 @@
         };
         img.src = url;
       }
-      function vote(visitId, choice) {
+      async function vote(visitId, choice) {
         const me = currentUser();
-        const visit = state.visits.find((v) => v.id === visitId);
-        if (!me || !visit) return;
-        if (visit.userId === me.id) return;
-        if (visit.yes.includes(me.id) || visit.no.includes(me.id)) return;
-        visit[choice].push(me.id);
-        if (visit.yes.length >= 2) visit.status = "approved";
-        persist();
-        if (visit.status === "approved") toast("Confirmed. On the board.");
-        else if (choice === "yes") toast(visit.yes.length + " of 2");
-        else toast("Noted.");
-      }
-
-      function el(html) {
-        const t = document.createElement("template");
-        t.innerHTML = html.trim();
-        return t.content;
+        if (!me || busy) return;
+        busy = true;
+        try {
+          const data = await api("POST", { op: "vote", userId: me.id, visitId, choice });
+          applyServer(data);
+          if (data.approved) toast("Confirmed. On the board.");
+          else if (choice === "yes") toast((data.yesCount || 1) + " of 2");
+          else toast("Noted.");
+        } catch (err) {
+          toast(err.message);
+        } finally {
+          busy = false;
+        }
       }
 
       function renderLanding() {
@@ -233,8 +266,19 @@
           </main>`;
       }
 
+      function renderLoading() {
+        return `
+          <header class="header">
+            <div class="header-inner"><span class="brand">ATR TRACKER</span></div>
+          </header>
+          <main>
+            <p class="lede" style="margin-top:2rem">Loading the board…</p>
+          </main>`;
+      }
+
       function renderApp() {
         const me = currentUser();
+        if (!me) return renderAuth();
         const week = weekStartMonday();
         const visits = thisWeekVisits();
         const toConfirm = visits.filter((v) => v.userId !== me.id && v.status === "pending");
@@ -273,7 +317,7 @@
                 </li>`;
               })
               .join("")
-          : `<p class="empty" style="margin-top:0.75rem">Nobody waiting on a confirm.</p>`;
+          : `<p class="empty" style="margin-top:0.75rem">When a teammate checks in, it shows up here for everyone.</p>`;
 
         const boardList = board.length
           ? board
@@ -347,7 +391,8 @@
       function render() {
         const root = document.getElementById("app");
         const toastHtml = toastMsg ? `<div class="toast">${escapeHtml(toastMsg)}</div>` : "";
-        if (screen === "landing") root.innerHTML = renderLanding() + toastHtml;
+        if (!ready) root.innerHTML = renderLoading() + toastHtml;
+        else if (screen === "landing") root.innerHTML = renderLanding() + toastHtml;
         else if (screen === "auth") root.innerHTML = renderAuth() + toastHtml;
         else root.innerHTML = renderApp() + toastHtml;
 
@@ -375,11 +420,8 @@
         root.querySelector("#auth-form")?.addEventListener("submit", (e) => {
           e.preventDefault();
           const fd = new FormData(e.target);
-          const err =
-            authMode === "signup"
-              ? signUp(fd.get("name"), fd.get("password"))
-              : signIn(fd.get("name"), fd.get("password"));
-          if (err) toast(err);
+          if (authMode === "signup") signUp(fd.get("name"), fd.get("password"));
+          else signIn(fd.get("name"), fd.get("password"));
         });
         root.querySelector("[data-out]")?.addEventListener("click", signOut);
         root.querySelector("[data-open-check]")?.addEventListener("click", () => {
@@ -419,3 +461,8 @@
       }
 
       render();
+      refresh(true);
+      clearInterval(pollTimer);
+      pollTimer = setInterval(() => {
+        if (document.visibilityState === "visible") refresh(false);
+      }, 4000);
